@@ -30,8 +30,8 @@ on:
 env:
   PYTHON_VERSION: "3.11"
   IMAGE_NAME: churn-api
-  AWS_REGION: ap-south-1          # add
-  ECR_REPOSITORY: churn-api       # add
+  AWS_REGION: ap-south-2      # add
+  ECR_REPOSITORY: churn-api-housa-017      # add
 
 jobs:
   # ════════════════════════════════════════════════════════════════════
@@ -62,15 +62,23 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Check DVC configuration
+        run: |
+          dvc --version
+          dvc remote list
+          dvc doctor
+
       - name: Pull DVC data from S3
         run: |
-         dvc pull
-
+          dvc pull -v
+        
       - name: Run unit tests
         run: pytest tests/ -v --tb=short
         env:
           PYTHONPATH: ${{ github.workspace }}
 
+
+      
       - name: Train model
         run: python src/train.py --tracking_uri "${{ secrets.MLFLOW_TRACKING_URI || 'http://localhost:5001' }}"
         env:
@@ -126,7 +134,8 @@ jobs:
             ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
 
       - name: Deployment summary
+        
         run: |
-          echo "== Image pushed to Docker Hub =="
-          echo "Image: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest"
-          echo "SHA tag: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo "== Image pushed to Amazon ECR =="
+          echo "Repository: ${{ env.ECR_REPOSITORY }}"
+          echo "SHA: ${{ github.sha }}"
